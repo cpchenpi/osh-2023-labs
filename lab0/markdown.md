@@ -15,12 +15,4 @@ int main(){
 
 Latex:
 
-$$
-\begin{align}
-
-    & \nabla \cdot \boldsymbol{D} = \rho_0 \\
-    & \nabla \times \boldsymbol{E} = - \frac{\partial B }{\partial t} \\
-    & \nabla \cdot \boldsymbol{B} = 0 \\
-    & \nabla \times \boldsymbol{H} = j_0 + \frac{\partial D }{\partial t}
-\end{align}
-$$
+$$ |A  B| = |A| |B|$$
