@@ -1,6 +1,9 @@
 One of my favorite pictures:
 > ![favpic](src/fav.jpg)
 
+
+c++ code:
+
 ``` c++
 #include <stdio.h>
 
@@ -11,8 +14,8 @@ int main(){
 ```
 
 Latex:
+
 $$
-\left \{
 \begin{align}
 
     & \nabla \cdot \boldsymbol{D} = \rho_0 \\
@@ -20,5 +23,4 @@ $$
     & \nabla \cdot \boldsymbol{B} = 0 \\
     & \nabla \times \boldsymbol{H} = j_0 + \frac{\partial D }{\partial t}
 \end{align}
-\right .
 $$
