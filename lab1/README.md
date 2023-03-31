@@ -22,6 +22,8 @@ Automount devtmpfs at /dev, after the kernel mounted the rootfs
 
 此时编译出的内核镜像只有2MB左右大小，并且编译时间也较短。使用qemu测试，系统运行（由于未指定初始内存盘出现kernel panic）。内核镜像文件已保存为`lab1/bzImage`。
 
+在知道实际只需要很小一部分内核这个"答案"之后，自然也可以反推回过程：从`defconfig`开始，禁用除了必要功能以外的所有选项，也能得到相近的结果。
+
 ### 交叉编译arm64下linux并在qemu中运行
 
 首先要按照对应平台安装合适的交叉编译器，这里我使用`aarch64-linux-dnu-gcc`。
@@ -46,7 +48,7 @@ Automount devtmpfs at /dev, after the kernel mounted the rootfs
 qemu-system-aarch64 -kernel arm64/Image -M virt -m 2048M -append "rdinit=/linuxrc console=ttyAMA0" -nographic -cpu cortex-a57 -smp 2
 ```
 
-成功运行linux系统（因为没有指定文件系统，出现kernel panic）。
+成功运行Linux系统（因为没有指定文件系统，出现kernel panic）。
 
 <img src="src/qemu-linux-amd64.png" style="zoom: 50%;" />
 
@@ -62,13 +64,18 @@ qemu-system-aarch64 -kernel arm64/Image -M virt -m 2048M -append "rdinit=/linuxr
 
 ### 修改 `init.c` 使编译的内存盘会导致 kernel panic
 
-待完成
+`kernel panic`是Linux监测到致命错误并无法安全处理时采取的操作。让系统运行不起来当然比让系统正确运行起来简单。`init`会作为第一个用户态进程被启动，成为所有后续进程的父进程；若试图退出`init`进程，就会导致kernel panic。所以最简单的一个办法是，只要将最后的死循环去掉，在`init.c`结束时即出现kernel panic。对应的代码文件见`lab1/panic_init/code`，编译后的`initrd.cpio.gz`在`lab1/panic_init`下。
+
+运行截图如下：
+![panic](src/panic.png)
+
+当然，这里有种逆向思维的感觉：前面也说了，让系统运行不起来比让系统正确运行起来简单，实际上在结尾加一个死循环就是为了防止退出`init`，将这部分删除自然会kernel panic。其它让系统不正常运行的方式也有很多，例如“试图读写无效或不允许的内存地址”(wikipedia)。
 
 ## 3.添加自定义系统调用
 
 ### 添加一个自定义的 Linux syscall
 
-添加syscall并编译过程仍然按部就班完成，内核文件保存为`lab1/syscall/bzImage`
+添加syscall并编译过程仍然按部就班完成，内核文件保存为`lab1/syscall/bzImage`。
 
 查阅提供资料，发现两参数系统调用的可以如下调用：`syscall(id, param1, param2)`，其中`id`就是我们记住的548，返回值为系统调用的返回值。
 
