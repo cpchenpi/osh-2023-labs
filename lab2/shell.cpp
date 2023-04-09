@@ -21,6 +21,10 @@ int main() {
 
     // 用来存储读入的一行命令
     std::string cmd;
+
+    // 获取用户主目录
+    char *home_dir = getenv("HOME");
+
     while (true) {
         // 打印提示符
         std::cout << "# ";
@@ -38,22 +42,22 @@ int main() {
 
         // 退出
         if (args[0] == "exit") {
-        if (args.size() <= 1) {
-            return 0;
-        }
+            if (args.size() <= 1) {
+                return 0;
+            }
 
-        // std::string 转 int
-        std::stringstream code_stream(args[1]);
-        int code = 0;
-        code_stream >> code;
+            // std::string 转 int
+            std::stringstream code_stream(args[1]);
+            int code = 0;
+            code_stream >> code;
 
-        // 转换失败
-        if (!code_stream.eof() || code_stream.fail()) {
-            std::cout << "Invalid exit code\n";
-            continue;
-        }
+            // 转换失败
+            if (!code_stream.eof() || code_stream.fail()) {
+                std::cout << "Invalid exit code\n";
+                continue;
+            }
 
-        return code;
+            return code;
         }
 
         if (args[0] == "pwd") {
@@ -64,7 +68,56 @@ int main() {
         }
 
         if (args[0] == "cd") {
-            std::cout << "To be done!\n";
+            if (args.size() > 2) {
+                std::cout << "Too many arguments!\n";
+                continue;
+            }
+
+            const char *buf;
+            std::string path;
+
+            if (args.size() == 1) {
+                // 根据bash的行为，参数为空时进入用户主目录
+                buf = home_dir;
+            } else {
+                path = std::string{args[1]};
+                if (args[1][0] == '~') {
+                    // 将~替换为主目录
+                    path.replace(0, 1, std::string{home_dir});
+                }
+                buf = path.data();
+            }
+
+            auto ret = chdir(buf);
+            if (ret == -1) {
+                int err = errno;
+                if (err == EACCES) {
+                    std::cout << "Permission denied.\n";
+                }
+                if (err == EFAULT) {
+                    std::cout << "Path points outside your accessible address "
+                                 "space.\n";
+                }
+                if (err == EIO) {
+                    std::cout << "An I/O error occurred.\n";
+                }
+                if (err == ELOOP) {
+                    std::cout << "Too many symbolic links were encountered in "
+                                 "resolving path.\n";
+                }
+                if (err == ENAMETOOLONG) {
+                    std::cout << "Path is too long!\n";
+                }
+                if (err == ENOENT) {
+                    std::cout << "Directory does not exist!\n";
+                }
+                if (err == ENOMEM) {
+                    std::cout << "Insufficient kernel memory was available.\n";
+                }
+                if (err == ENOTDIR) {
+                    std::cout << "A component of path is not a directory.\n";
+                }
+            }
             continue;
         }
 
@@ -74,15 +127,16 @@ int main() {
         // std::vector<std::string> 转 char **
         char *arg_ptrs[args.size() + 1];
         for (auto i = 0; i < (int)args.size(); i++) {
-        arg_ptrs[i] = &args[i][0];
+            arg_ptrs[i] = &args[i][0];
         }
         // exec p 系列的 argv 需要以 nullptr 结尾
         arg_ptrs[args.size()] = nullptr;
 
         if (pid == 0) {
             // 这里只有子进程才会进入
-            // execvp 会完全更换子进程接下来的代码，所以正常情况下 execvp 之后这里的代码就没意义了
-            // 如果 execvp 之后的代码被运行了，那就是 execvp 出问题了
+            // execvp 会完全更换子进程接下来的代码，所以正常情况下 execvp
+            // 之后这里的代码就没意义了 如果 execvp 之后的代码被运行了，那就是
+            // execvp 出问题了
             execvp(args[0].c_str(), arg_ptrs);
 
             // 所以这里直接报错
