@@ -33,7 +33,7 @@ int main() {
 
 		// 没有可处理的命令
 		if (args.empty()) {
-		continue;
+			continue;
 		}
 
 		// 退出
@@ -57,13 +57,13 @@ int main() {
 		}
 
 		if (args[0] == "pwd") {
-		std::cout << "To be done!\n";
-		continue;
+			std::cout << "To be done!\n";
+			continue;
 		}
 
 		if (args[0] == "cd") {
-		std::cout << "To be done!\n";
-		continue;
+			std::cout << "To be done!\n";
+			continue;
 		}
 
 		// 处理外部命令
@@ -78,19 +78,19 @@ int main() {
 		arg_ptrs[args.size()] = nullptr;
 
 		if (pid == 0) {
-		// 这里只有子进程才会进入
-		// execvp 会完全更换子进程接下来的代码，所以正常情况下 execvp 之后这里的代码就没意义了
-		// 如果 execvp 之后的代码被运行了，那就是 execvp 出问题了
-		execvp(args[0].c_str(), arg_ptrs);
+			// 这里只有子进程才会进入
+			// execvp 会完全更换子进程接下来的代码，所以正常情况下 execvp 之后这里的代码就没意义了
+			// 如果 execvp 之后的代码被运行了，那就是 execvp 出问题了
+			execvp(args[0].c_str(), arg_ptrs);
 
-		// 所以这里直接报错
-		exit(255);
+			// 所以这里直接报错
+			exit(255);
 		}
 
 		// 这里只有父进程（原进程）才会进入
 		int ret = wait(nullptr);
 		if (ret < 0) {
-		std::cout << "wait failed";
+			std::cout << "wait failed";
 		}
 	}
 }
