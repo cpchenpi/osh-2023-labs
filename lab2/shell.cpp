@@ -57,7 +57,9 @@ int main() {
         }
 
         if (args[0] == "pwd") {
-            std::cout << "To be done!\n";
+            auto buf = get_current_dir_name();
+            std::cout << buf << std::endl;
+            free(buf);
             continue;
         }
 
