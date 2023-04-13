@@ -15,6 +15,78 @@
 
 std::vector<std::string> split(std::string s, const std::string &delimiter);
 
+void process_pwd() {
+    auto buf = get_current_dir_name();
+    if (buf) {
+        std::cout << buf << std::endl;
+        free(buf);
+    } else {
+        int err = errno;
+        switch (err) {
+        case EACCES:
+            std::cout << "Permission denied.\n";
+            break;
+        case ENOENT:
+            std::cout << "The current working directory has been unlinked.\n";
+            break;
+        case ENOMEM:
+            std::cout << "No enough memory!\n";
+            break;
+        default:
+            std::cout << "Unknown error occured.\n";
+            break;
+        }
+    }
+}
+
+void process_cd(std::vector<std::string> &args, char *home_dir) {
+    if (args.size() > 2) {
+        std::cout << "Too many arguments!\n";
+        return;
+    }
+
+    const char *buf;
+    std::string path;
+
+    if (args.size() == 1) {
+        // 根据bash的行为，参数为空时进入用户主目录
+        buf = home_dir;
+    } else {
+        path = std::string{args[1]};
+        if (args[1][0] == '~') {
+            // 将~替换为主目录
+            path.replace(0, 1, std::string{home_dir});
+        }
+        buf = path.data();
+    }
+
+    auto ret = chdir(buf);
+    if (ret == -1) {
+        int err = errno;
+        if (err == EACCES) {
+            std::cout << "Permission denied.\n";
+        } else if (err == EFAULT) {
+            std::cout << "Path points outside your accessible address "
+                         "space.\n";
+        } else if (err == EIO) {
+            std::cout << "An I/O error occurred.\n";
+        } else if (err == ELOOP) {
+            std::cout << "Too many symbolic links were encountered in "
+                         "resolving path.\n";
+        } else if (err == ENAMETOOLONG) {
+            std::cout << "Path is too long!\n";
+        } else if (err == ENOENT) {
+            std::cout << "Directory does not exist!\n";
+        } else if (err == ENOMEM) {
+            std::cout << "Insufficient kernel memory was available.\n";
+        } else if (err == ENOTDIR) {
+            std::cout << "A component of path is not a directory.\n";
+        } else {
+            std::cout << "Unknown error occurred.\n";
+        }
+    }
+}
+
 int main() {
     // 不同步 iostream 和 cstdio 的 buffer
     std::ios::sync_with_stdio(false);
@@ -61,63 +133,12 @@ int main() {
         }
 
         if (args[0] == "pwd") {
-            auto buf = get_current_dir_name();
-            std::cout << buf << std::endl;
-            free(buf);
+            process_pwd();
             continue;
         }
 
         if (args[0] == "cd") {
-            if (args.size() > 2) {
-                std::cout << "Too many arguments!\n";
-                continue;
-            }
-
-            const char *buf;
-            std::string path;
-
-            if (args.size() == 1) {
-                // 根据bash的行为，参数为空时进入用户主目录
-                buf = home_dir;
-            } else {
-                path = std::string{args[1]};
-                if (args[1][0] == '~') {
-                    // 将~替换为主目录
-                    path.replace(0, 1, std::string{home_dir});
-                }
-                buf = path.data();
-            }
-
-            auto ret = chdir(buf);
-            if (ret == -1) {
-                int err = errno;
-                if (err == EACCES) {
-                    std::cout << "Permission denied.\n";
-                }
-                if (err == EFAULT) {
-                    std::cout << "Path points outside your accessible address "
-                                 "space.\n";
-                }
-                if (err == EIO) {
-                    std::cout << "An I/O error occurred.\n";
-                }
-                if (err == ELOOP) {
-                    std::cout << "Too many symbolic links were encountered in "
-                                 "resolving path.\n";
-                }
-                if (err == ENAMETOOLONG) {
-                    std::cout << "Path is too long!\n";
-                }
-                if (err == ENOENT) {
-                    std::cout << "Directory does not exist!\n";
-                }
-                if (err == ENOMEM) {
-                    std::cout << "Insufficient kernel memory was available.\n";
-                }
-                if (err == ENOTDIR) {
-                    std::cout << "A component of path is not a directory.\n";
-                }
-            }
+            process_cd(args, home_dir);
             continue;
         }
 
