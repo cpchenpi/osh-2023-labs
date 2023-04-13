@@ -2,6 +2,8 @@
 #include <iostream>
 // std::string
 #include <string>
+// C-type string
+#include <cstring>
 // std::vector
 #include <vector>
 // std::string 转 int
@@ -148,7 +150,9 @@ int main() {
         // std::vector<std::string> 转 char **
         char *arg_ptrs[args.size() + 1];
         for (auto i = 0; i < (int)args.size(); i++) {
-            arg_ptrs[i] = &args[i][0];
+            arg_ptrs[i] = (char *)malloc(args[i].length() + 1);
+            auto buf = args[i].c_str();
+            strcpy(arg_ptrs[i], buf);
         }
         // exec p 系列的 argv 需要以 nullptr 结尾
         arg_ptrs[args.size()] = nullptr;
