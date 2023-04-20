@@ -16,6 +16,8 @@
 #include <sys/wait.h>
 // cmd queue
 #include <queue>
+// file
+#include <fcntl.h>
 
 std::vector<std::string> split(std::string s, const std::string &delimiter);
 
@@ -142,11 +144,95 @@ void process_one(std::vector<std::string> &args, int left_pipe[2],
         dup2(left_pipe[0], STDIN_FILENO);
         close(left_pipe[0]);
         close(left_pipe[1]);
+    } else {
+        if (args.size() >= 2) {
+            int n = args.size();
+            if (args[n - 2] == "<") {
+                std::string filename = args.back();
+                args.pop_back();
+                args.pop_back();
+                int file_in = open(filename.data(), O_RDONLY);
+                if (file_in != -1) {
+                    dup2(file_in, STDIN_FILENO);
+                    close(file_in);
+                } else {
+                    std::cout << "Failed to open file" << filename << "!"
+                              << std::endl;
+                    return;
+                }
+            } else if (args[n - 2] == "<<") {
+                std::string split_str = args.back();
+                args.pop_back();
+                args.pop_back();
+                int tmp_file = open("./", O_TMPFILE | O_RDWR);
+                if (tmp_file != -1) {
+                    std::string line;
+                    while (std::getline(std::cin, line), line != split_str) {
+                        line += "\n";
+                        write(tmp_file, line.data(), line.length());
+                    }
+                    lseek(tmp_file, SEEK_SET, 0);
+                    dup2(tmp_file, STDIN_FILENO);
+                    close(tmp_file);
+                } else {
+                    std::cout << "Failed to create temp file!" << std::endl;
+                    return;
+                }
+            } else if (args[n - 2] == "<<<") {
+                std::string temp_str = args.back();
+                args.pop_back();
+                args.pop_back();
+                int tmp_file = open("./", O_TMPFILE | O_RDWR);
+                if (tmp_file != -1) {
+                    temp_str += "\n";
+                    write(tmp_file, temp_str.data(), temp_str.length());
+                    lseek(tmp_file, SEEK_SET, 0);
+                    dup2(tmp_file, STDIN_FILENO);
+                    close(tmp_file);
+                } else {
+                    std::cout << "Failed to create temp file!" << std::endl;
+                    return;
+                }
+            }
+        }
     }
     if (right_pipe) {
         dup2(right_pipe[1], STDOUT_FILENO);
         close(right_pipe[0]);
         close(right_pipe[1]);
+    } else {
+        if (args.size() >= 2) {
+            int n = args.size();
+            if (args[n - 2] == ">") {
+                std::string filename = args.back();
+                args.pop_back();
+                args.pop_back();
+                int file_in = open(filename.data(),
+                                   O_WRONLY | O_TRUNC | O_CREAT, S_IRWXU);
+                if (file_in != -1) {
+                    dup2(file_in, STDOUT_FILENO);
+                    close(file_in);
+                } else {
+                    std::cout << "Failed to open file" << filename << "!"
+                              << std::endl;
+                    return;
+                }
+            } else if (args[n - 2] == ">>") {
+                std::string filename = args.back();
+                args.pop_back();
+                args.pop_back();
+                int file_in = open(filename.data(),
+                                   O_WRONLY | O_APPEND | O_CREAT, S_IRWXU);
+                if (file_in != -1) {
+                    dup2(file_in, STDOUT_FILENO);
+                    close(file_in);
+                } else {
+                    std::cout << "Failed to open file" << filename << "!"
+                              << std::endl;
+                    return;
+                }
+            }
+        }
     }
     // std::vector<std::string> 转 char **
     char *arg_ptrs[args.size() + 1];
