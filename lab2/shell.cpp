@@ -156,7 +156,7 @@ void process_one(std::vector<std::string> &args, int left_pipe[2],
                     dup2(file_in, STDIN_FILENO);
                     close(file_in);
                 } else {
-                    std::cout << "Failed to open file" << filename << "!"
+                    std::cout << "Failed to open file " << filename << "!"
                               << std::endl;
                     return;
                 }
@@ -203,32 +203,24 @@ void process_one(std::vector<std::string> &args, int left_pipe[2],
     } else {
         if (args.size() >= 2) {
             int n = args.size();
-            if (args[n - 2] == ">") {
+            if (args[n - 2] == ">" || args[n - 2] == ">>") {
                 std::string filename = args.back();
                 args.pop_back();
+                std::string op = args.back();
                 args.pop_back();
-                int file_in = open(filename.data(),
+                int file_in;
+                if (op == ">")
+                    file_in = open(filename.data(),
                                    O_WRONLY | O_TRUNC | O_CREAT, S_IRWXU);
-                if (file_in != -1) {
-                    dup2(file_in, STDOUT_FILENO);
-                    close(file_in);
-                } else {
-                    std::cout << "Failed to open file" << filename << "!"
-                              << std::endl;
-                    return;
-                }
-            } else if (args[n - 2] == ">>") {
-                std::string filename = args.back();
-                args.pop_back();
-                args.pop_back();
-                int file_in = open(filename.data(),
+                else
+                    file_in = open(filename.data(),
                                    O_WRONLY | O_APPEND | O_CREAT, S_IRWXU);
                 if (file_in != -1) {
                     dup2(file_in, STDOUT_FILENO);
                     close(file_in);
                 } else {
-                    std::cout << "Failed to open file" << filename << "!"
-                              << std::endl;
+                    std::cout << "Failed to open/create file " << filename
+                              << "!" << std::endl;
                     return;
                 }
             }
