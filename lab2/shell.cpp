@@ -140,6 +140,15 @@ void process_one(std::vector<std::string> &args, int left_pipe[2],
     }
     std::cerr << std::endl;
 #endif
+    if (args.size() >= 4) {
+        int n = args.size();
+        if ((args[n - 4] == "<" || args[n - 4] == "<<" ||
+             args[n - 4] == "<<<") &&
+            (args[n - 2] == ">" || args[n - 2] == ">>")) {
+            std::swap(args[n - 4], args[n - 2]);
+            std::swap(args[n - 3], args[n - 1]);
+        }
+    }
     if (left_pipe) {
         dup2(left_pipe[0], STDIN_FILENO);
         close(left_pipe[0]);
