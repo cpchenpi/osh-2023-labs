@@ -133,13 +133,10 @@ void process_out(std::queue<std::vector<std::string>> &cmds, int last_pipe[2]) {
 
 void process_one(std::vector<std::string> &args, int left_pipe[2],
                  int right_pipe[2]) {
-#ifdef TEST
-    std::cerr << getpid() << " running args: ";
-    for (auto s : args) {
-        std::cerr << s << " ";
-    }
-    std::cerr << std::endl;
-#endif
+    signal(SIGINT, SIG_DFL);
+    signal(SIGTTIN, SIG_DFL);
+    signal(SIGTTOU, SIG_DFL);
+    signal(SIGCHLD, SIG_DFL);
     if (args.size() >= 4) {
         int n = args.size();
         if ((args[n - 4] == "<" || args[n - 4] == "<<" ||
@@ -252,7 +249,20 @@ void process_one(std::vector<std::string> &args, int left_pipe[2],
     exit(255);
 }
 
+int background_count = 0;
+
+pid_t main_pid;
+
+void sigint_process(int sig) {
+    std::cout << std::endl << "# ";
+    std::cout.flush();
+}
+
 int main() {
+    while (tcgetpgrp(0) != getpgid(getpid())) {
+        // 等待进程成为前台进程
+    }
+
     // 不同步 iostream 和 cstdio 的 buffer
     std::ios::sync_with_stdio(false);
 
@@ -261,6 +271,10 @@ int main() {
 
     // 获取用户主目录
     char *home_dir = getenv("HOME");
+
+    main_pid = getpid();
+
+    signal(SIGINT, sigint_process);
 
     while (true) {
         // 打印提示符
@@ -275,6 +289,11 @@ int main() {
         // 没有可处理的命令
         if (args.empty()) {
             continue;
+        }
+
+        if (args[0] == "pids") {
+            std::cout << getpid() << " " << getpgid(getpid()) << " "
+                      << tcgetpgrp(0) << std::endl;
         }
 
         // 退出
@@ -313,19 +332,23 @@ int main() {
             int n = cmds.size();
             pid_t pid = fork();
             if (pid == 0) {
+                signal(SIGINT, SIG_IGN);
+                signal(SIGTTIN, SIG_IGN);
+                signal(SIGTTOU, SIG_IGN);
+                signal(SIGCHLD, SIG_IGN);
+                setpgid(0, 0);
                 process_out(cmds, 0);
                 for (int i = 0; i < n; i++) {
-#ifdef TEST
-                    pid_t waited_pid = wait(nullptr);
-                    std::cerr << getpid() << " wait " << waited_pid
-                              << " successfull.\n";
-#else
                     wait(nullptr);
-#endif
                 }
-                exit(0);
+                tcsetpgrp(0, getpgid(main_pid));
+                _exit(0);
             } else {
                 // 这里只有父进程（原进程）才会进入
+                while (getpgid(pid) != pid) {
+                    // 等待子进程完成进程组的设置
+                }
+                tcsetpgrp(0, pid);
                 wait(&pid);
             }
         }
