@@ -276,6 +276,8 @@ int main() {
 
     signal(SIGINT, sigint_process);
 
+    std::queue<pid_t> wait_queue;
+
     while (true) {
         // 打印提示符
         std::cout << "# ";
@@ -326,6 +328,25 @@ int main() {
             continue;
         }
 
+        if (args[0] == "wait") {
+            if (args.size() > 1) {
+                std::cout << "Too many arguments!" << std::endl;
+            }
+            while (!wait_queue.empty()) {
+                pid_t child_pid = wait_queue.front();
+                wait(&child_pid);
+                std::cout << "Pid " << wait_queue.front() << " ends."
+                          << std::endl;
+                wait_queue.pop();
+            }
+        }
+
+        bool background = false;
+
+        if (args.back() == "&") {
+            background = true;
+            args.pop_back();
+        }
         // 处理外部命令
         auto cmds = vstr_split(args, "|");
         if (!cmds.empty()) {
@@ -341,15 +362,21 @@ int main() {
                 for (int i = 0; i < n; i++) {
                     wait(nullptr);
                 }
-                tcsetpgrp(0, getpgid(main_pid));
+                if (!background)
+                    tcsetpgrp(0, getpgid(main_pid));
                 _exit(0);
             } else {
-                // 这里只有父进程（原进程）才会进入
-                while (getpgid(pid) != pid) {
-                    // 等待子进程完成进程组的设置
+                if (!background) {
+                    // 这里只有父进程（原进程）才会进入
+                    while (getpgid(pid) != pid) {
+                        // 等待子进程完成进程组的设置
+                    }
+                    tcsetpgrp(0, pid);
+                    wait(&pid);
+                } else {
+                    std::cout << "Pid " << pid << " running" << std::endl;
+                    wait_queue.push(pid);
                 }
-                tcsetpgrp(0, pid);
-                wait(&pid);
             }
         }
     }
