@@ -261,9 +261,13 @@ void process_one(std::vector<std::string> &args, int left_pipe[2],
 
 pid_t main_pid;
 
+bool handling = false;
+
 void sigint_process(int sig) {
-    std::cout << std::endl << "# ";
-    std::cout.flush();
+    if (!handling) {
+        std::cout << std::endl << "# ";
+        std::cout.flush();
+    }
 }
 
 int main() {
@@ -292,8 +296,12 @@ int main() {
         // 打印提示符
         std::cout << "# ";
 
+        handling = false;
+
         // 读入一行。std::getline 结果不包含换行符。
         std::getline(std::cin, cmd);
+
+        handling = true;
 
         // 按空格分割命令为单词
         std::vector<std::string> orig_args = split(cmd, " ");
@@ -435,7 +443,7 @@ int main() {
             }
             while (!wait_queue.empty()) {
                 pid_t child_pid = wait_queue.front();
-                wait(&child_pid);
+                waitpid(child_pid, nullptr, 0);
                 std::cout << "Pid " << wait_queue.front() << " ends."
                           << std::endl;
                 wait_queue.pop();
@@ -445,12 +453,14 @@ int main() {
 
         bool background = false;
 
-        if (args.back() == "&") {
-            background = true;
-            args.pop_back();
-        }
         // 处理外部命令
         auto cmds = vstr_split(args, "|", true);
+
+        if (cmds.back().back() == "&") {
+            background = true;
+            cmds.back().pop_back();
+        }
+
         if (!cmds.empty()) {
             int n = cmds.size();
             pid_t pid = fork();
