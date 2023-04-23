@@ -18,12 +18,15 @@
 #include <queue>
 // file
 #include <fcntl.h>
+// 字典
+#include <unordered_map>
 
 // 辅助函数
 std::vector<std::string> split(std::string s, const std::string &delimiter);
 
 std::queue<std::vector<std::string>> vstr_split(std::vector<std::string> &vstr,
-                                                const std::string &delimiter);
+                                                const std::string &delimiter,
+                                                bool convert);
 
 std::string join(std::vector<std::string> v, const std::string &delimiter);
 
@@ -103,6 +106,8 @@ void process_cd(std::vector<std::string> &args, char *home_dir) {
 
 void process_one(std::vector<std::string> &args, int left_pipe[2],
                  int right_pipe[2]);
+
+std::unordered_map<std::string, std::string> alias_map;
 
 void process_out(std::queue<std::vector<std::string>> &cmds, int last_pipe[2]) {
     auto args = cmds.front();
@@ -320,7 +325,8 @@ int main() {
                 }
                 changed = true;
             } else {
-                args.push_back(s);
+                if (s.length() > 0 && s != " ")
+                    args.push_back(s);
             }
         }
 
@@ -355,9 +361,45 @@ int main() {
             }
         }
 
+        if (args[0] == "alias") {
+            if (args.size() == 1) {
+                for (auto p : alias_map) {
+                    std::cout << "alias " << p.first << " = " << p.second
+                              << std::endl;
+                }
+                continue;
+            } else {
+                args.erase(args.begin());
+                auto q = vstr_split(args, "=", false);
+                if (q.size() >= 3) {
+                    std::cout << "Too many arguments!" << std::endl;
+                    continue;
+                }
+                std::string first, second;
+                first = join(q.front(), " ");
+                q.pop();
+                if (q.size() == 0) {
+                    if (alias_map.count(first)) {
+                        std::cout << "alias " << first << " = "
+                                  << alias_map[first] << std::endl;
+                    } else {
+                        std::cout << "alias " << first << " not found!"
+                                  << std::endl;
+                    }
+                    continue;
+                }
+                second = join(q.front(), " ");
+                alias_map[first] = second;
+                std::cout << "alias " << first << " = " << alias_map[first]
+                          << std::endl;
+                continue;
+            }
+        }
+
         if (args[0] == "pids") {
             std::cout << getpid() << " " << getpgid(getpid()) << " "
                       << tcgetpgrp(0) << std::endl;
+            continue;
         }
 
         // 退出
@@ -368,7 +410,6 @@ int main() {
 
             int code = 0;
 
-            // 转换失败
             if (safe_stoi(args[1], code)) {
                 return code;
             } else {
@@ -399,6 +440,7 @@ int main() {
                           << std::endl;
                 wait_queue.pop();
             }
+            continue;
         }
 
         bool background = false;
@@ -408,7 +450,7 @@ int main() {
             args.pop_back();
         }
         // 处理外部命令
-        auto cmds = vstr_split(args, "|");
+        auto cmds = vstr_split(args, "|", true);
         if (!cmds.empty()) {
             int n = cmds.size();
             pid_t pid = fork();
@@ -442,8 +484,6 @@ int main() {
     }
 }
 
-// 经典的 cpp string split 实现
-// https://stackoverflow.com/a/14266139/11691878
 std::vector<std::string> split(std::string s, const std::string &delimiter) {
     std::vector<std::string> res;
     size_t pos = 0;
@@ -458,30 +498,49 @@ std::vector<std::string> split(std::string s, const std::string &delimiter) {
 }
 
 std::queue<std::vector<std::string>> vstr_split(std::vector<std::string> &vstr,
-                                                const std::string &delimiter) {
-    std::queue<std::vector<std::string>> ans;
+                                                const std::string &delimiter,
+                                                bool convert = true) {
+    std::vector<std::vector<std::string>> ans;
+    std::queue<std::vector<std::string>> res;
     int last_begin = 0, n = vstr.size();
     for (int i = 0; i < n; i++) {
         if (vstr[i] == delimiter) {
             if (i == last_begin || i == n - 1) {
                 std::cout << "Wrong pipe format!" << std::endl;
-                while (!ans.empty()) {
-                    ans.pop();
-                }
-                return ans;
+                return res;
             }
-            ans.emplace();
+            ans.emplace_back();
             for (int j = last_begin; j < i; j++) {
                 ans.back().push_back(vstr[j]);
             }
             last_begin = i + 1;
         }
     }
-    ans.emplace();
+    ans.emplace_back();
     for (int j = last_begin; j < n; j++) {
         ans.back().push_back(vstr[j]);
     }
-    return ans;
+    for (auto nargs : ans) {
+        if (nargs.size() == 0)
+            continue;
+        std::vector<std::string> args;
+        if (convert) {
+            if (alias_map.count(nargs[0])) {
+                for (auto s : split(alias_map[nargs[0]], " ")) {
+                    args.push_back(s);
+                }
+            } else {
+                args.push_back(nargs[0]);
+            }
+            for (int i = 1; i < (int)nargs.size(); i++) {
+                args.push_back(nargs[i]);
+            }
+        } else {
+            args = nargs;
+        }
+        res.push(args);
+    }
+    return res;
 }
 
 std::string join(std::vector<std::string> v, const std::string &delimiter) {
