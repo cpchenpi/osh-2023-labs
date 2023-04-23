@@ -19,10 +19,15 @@
 // file
 #include <fcntl.h>
 
+// 辅助函数
 std::vector<std::string> split(std::string s, const std::string &delimiter);
 
 std::queue<std::vector<std::string>> vstr_split(std::vector<std::string> &vstr,
                                                 const std::string &delimiter);
+
+std::string join(std::vector<std::string> v, const std::string &delimiter);
+
+bool safe_stoi(std::string s, int &x);
 
 void process_pwd() {
     auto buf = get_current_dir_name();
@@ -249,8 +254,6 @@ void process_one(std::vector<std::string> &args, int left_pipe[2],
     exit(255);
 }
 
-int background_count = 0;
-
 pid_t main_pid;
 
 void sigint_process(int sig) {
@@ -278,6 +281,8 @@ int main() {
 
     std::queue<pid_t> wait_queue;
 
+    std::vector<std::string> history_cmds;
+
     while (true) {
         // 打印提示符
         std::cout << "# ";
@@ -286,11 +291,68 @@ int main() {
         std::getline(std::cin, cmd);
 
         // 按空格分割命令为单词
-        std::vector<std::string> args = split(cmd, " ");
+        std::vector<std::string> orig_args = split(cmd, " ");
+
+        std::vector<std::string> args;
+
+        bool failed = false, changed = false;
+
+        for (auto s : orig_args) {
+            if (s[0] == '!') {
+                int n = history_cmds.size();
+                if (s == "!!") {
+                    s = "!" + std::to_string(n);
+                }
+                s.erase(0, 1);
+                int x = 0;
+                if (!safe_stoi(s, x)) {
+                    std::cout << "Invalid argument: " << s << std::endl;
+                    failed = true;
+                    break;
+                }
+                if (x < 1 || x > n) {
+                    std::cout << "No such command: " << s << std::endl;
+                    failed = true;
+                    break;
+                }
+                for (auto his_arg : split(history_cmds[x - 1], " ")) {
+                    args.push_back(his_arg);
+                }
+                changed = true;
+            } else {
+                args.push_back(s);
+            }
+        }
+
+        if (failed)
+            continue;
+
+        if (changed) {
+            std::cout << "Parsed as: " << join(args, " ") << std::endl;
+        }
+
+        history_cmds.push_back(join(args, " "));
 
         // 没有可处理的命令
         if (args.empty()) {
             continue;
+        }
+
+        if (args[0] == "history") {
+            if (args.size() > 3) {
+                std::cout << "Too many arguments!" << std::endl;
+                continue;
+            }
+            if (args.size() == 1) {
+                args.push_back(std::to_string(history_cmds.size()));
+            }
+            for (int i = std::stoi(args[1]); i >= 1; i--) {
+                int pos = history_cmds.size() - i;
+                if (pos >= 0) {
+                    std::cout << "  " << pos + 1 << "  " << history_cmds[pos]
+                              << std::endl;
+                }
+            }
         }
 
         if (args[0] == "pids") {
@@ -304,18 +366,15 @@ int main() {
                 return 0;
             }
 
-            // std::string 转 int
-            std::stringstream code_stream(args[1]);
             int code = 0;
-            code_stream >> code;
 
             // 转换失败
-            if (!code_stream.eof() || code_stream.fail()) {
+            if (safe_stoi(args[1], code)) {
+                return code;
+            } else {
                 std::cout << "Invalid exit code\n";
                 continue;
             }
-
-            return code;
         }
 
         if (args[0] == "pwd") {
@@ -331,6 +390,7 @@ int main() {
         if (args[0] == "wait") {
             if (args.size() > 1) {
                 std::cout << "Too many arguments!" << std::endl;
+                continue;
             }
             while (!wait_queue.empty()) {
                 pid_t child_pid = wait_queue.front();
@@ -422,4 +482,26 @@ std::queue<std::vector<std::string>> vstr_split(std::vector<std::string> &vstr,
         ans.back().push_back(vstr[j]);
     }
     return ans;
+}
+
+std::string join(std::vector<std::string> v, const std::string &delimiter) {
+    int n = v.size();
+    std::string ans;
+    for (int i = 0; i < n; i++) {
+        ans += v[i];
+        if (i != n - 1) {
+            ans += delimiter;
+        }
+    }
+    return ans;
+}
+
+bool safe_stoi(std::string s, int &x) {
+    std::stringstream stream(s);
+    stream >> x;
+    // 转换失败
+    if (!stream.eof() || stream.fail()) {
+        return false;
+    }
+    return true;
 }
