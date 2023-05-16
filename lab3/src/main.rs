@@ -1,10 +1,13 @@
 use lab3::{input_handle::InputHandler, output_handle::OutputHandler, status::Status};
-use std::net::{TcpListener, TcpStream};
+use std::{
+    net::{TcpListener, TcpStream},
+    thread,
+};
 
 fn main() {
     let listener = TcpListener::bind("0.0.0.0:8000").unwrap();
     for stream in listener.incoming() {
-        handle_connection(stream.unwrap());
+        thread::spawn(|| handle_connection(stream.unwrap()));
     }
 }
 
