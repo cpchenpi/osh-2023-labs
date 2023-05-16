@@ -7,7 +7,14 @@ use std::{
 fn main() {
     let listener = TcpListener::bind("0.0.0.0:8000").unwrap();
     for stream in listener.incoming() {
-        thread::spawn(|| handle_connection(stream.unwrap()));
+        match stream {
+            Ok(stream) => {
+                thread::spawn(|| handle_connection(stream));
+            }
+            Err(e) => {
+                eprintln!("Error while establishing connection: {}", e);
+            }
+        }
     }
 }
 
