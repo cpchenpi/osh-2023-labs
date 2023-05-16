@@ -14,8 +14,8 @@ fn main() {
 fn handle_connection(mut stream: TcpStream) {
     println!("Connection established!");
     let got_path = InputHandler::get_path(&mut stream);
-    let status = Status::from_path_result(&got_path);
-    println!("Respond status: {:?}", status);
+    let status = Status::from_path_result(got_path);
+    println!("Respond status code: {:?}", status.code);
     let status_line = status.get_status_line();
     let mut respond_content: Vec<_> = Vec::new();
     respond_content.push("");

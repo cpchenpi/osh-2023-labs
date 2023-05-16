@@ -1,36 +1,51 @@
 pub mod status {
-    use std::path::Path;
+    use std::{fmt::Debug, path::Path};
+
+    pub struct Status {
+        pub code: StatusCode,
+        pub path: String,
+    }
 
     #[derive(Debug)]
-    pub enum Status {
+    pub enum StatusCode {
         Status200,
         Status404,
         Status500,
     }
 
     impl Status {
-        pub fn from_path_result<T>(r: &Result<String, T>) -> Self {
-            match r {
+        pub fn from_path_result<T: Debug>(r: Result<String, T>) -> Self {
+            let code = match &r {
                 Ok(path) => {
                     let p = Path::new(path);
                     if p.exists() {
                         if p.is_dir() {
-                            Status::Status500
+                            StatusCode::Status500
                         } else {
-                            Status::Status200
+                            StatusCode::Status200
                         }
                     } else {
-                        Status::Status404
+                        StatusCode::Status404
                     }
                 }
-                Err(_) => Status::Status500,
+                Err(_) => StatusCode::Status500,
+            };
+            match code {
+                StatusCode::Status200 => Status {
+                    path: r.unwrap(),
+                    code,
+                },
+                _ => Status {
+                    path: String::from("."),
+                    code,
+                },
             }
         }
         pub fn get_status_line(&self) -> &'static str {
-            match self {
-                Status::Status200 => "HTTP/1.0 200 OK",
-                Status::Status404 => "HTTP/1.0 404 Not Found",
-                Status::Status500 => "HTTP/1.0 500 Internal Server Error",
+            match self.code {
+                StatusCode::Status200 => "HTTP/1.0 200 OK",
+                StatusCode::Status404 => "HTTP/1.0 404 Not Found",
+                StatusCode::Status500 => "HTTP/1.0 500 Internal Server Error",
             }
         }
     }
@@ -134,3 +149,5 @@ pub mod input_handle {
         }
     }
 }
+
+pub mod output_handle {}
