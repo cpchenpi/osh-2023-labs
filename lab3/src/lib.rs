@@ -6,7 +6,7 @@ pub mod status {
         pub path: String,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq, Eq)]
     pub enum StatusCode {
         Status200,
         Status404,
@@ -156,7 +156,12 @@ pub mod input_handle {
 }
 
 pub mod output_handle {
-    use std::{error::Error, fs::read, io::Write, net::TcpStream};
+    use std::{
+        error::Error,
+        fs::File,
+        io::{BufReader, Read, Write},
+        net::TcpStream,
+    };
 
     use crate::status::{Status, StatusCode};
 
@@ -177,7 +182,7 @@ pub mod output_handle {
         Ok(())
     }
 
-    fn write_all_u8(stream: &mut TcpStream, buf: Vec<u8>) -> Result<(), Box<dyn Error>> {
+    fn write_all_u8(stream: &mut TcpStream, buf: &[u8]) -> Result<(), Box<dyn Error>> {
         let mut written_count = 0;
         let n = buf.len();
         while written_count < n {
@@ -196,14 +201,24 @@ pub mod output_handle {
         fn handle(stream: &mut TcpStream, status: Status) -> Result<(), Box<dyn Error>> {
             let status_line = status.get_status_line();
             write_line(stream, status_line)?;
-            let buf = match status.code {
-                StatusCode::Status200 => read(&status.path)?,
-                _ => Vec::new(),
+            let len = match status.code {
+                StatusCode::Status200 => File::open(&status.path)?.metadata()?.len() as usize,
+                _ => 0,
             };
             // println!("Output buf content: {:?}", buf);
-            write_line(stream, &format!("Content-Length: {}", buf.len()))?;
+            write_line(stream, &format!("Content-Length: {}", len))?;
             write_line(stream, "")?;
-            write_all_u8(stream, buf)?;
+            if status.code == StatusCode::Status200 {
+                let file = File::open(&status.path)?;
+                let mut reader = BufReader::new(file);
+                let mut read_len = 0;
+                let mut buf = vec![0; 4096];
+                while read_len < len {
+                    let single_len = reader.read(&mut buf[..])?;
+                    read_len += single_len;
+                    write_all_u8(stream, &buf[0..single_len])?;
+                }
+            }
             Ok(())
         }
     }
