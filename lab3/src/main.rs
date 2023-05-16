@@ -76,7 +76,23 @@ fn write_all(stream: &mut TcpStream, s: String){
 }
 
 // the path should not jump out of the project directory
-fn path_inside(_path: &str)->bool{
+fn path_inside(path: &str)->bool{
+    let mut now_layer = 0;
+    for word in path.split('/') {
+        match word {
+            "." => {},
+            ".." => {
+                if now_layer != 0 {
+                    now_layer -= 1;
+                } else {
+                    return false;
+                }
+            },
+            _ => {
+                now_layer += 1;
+            }
+        }
+    }
     true
 }
 
