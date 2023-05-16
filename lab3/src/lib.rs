@@ -20,15 +20,20 @@ pub mod status {
                     let p = Path::new(path);
                     if p.exists() {
                         if p.is_dir() {
+                            eprintln!("Error handling input: path {} is directory", path);
                             StatusCode::Status500
                         } else {
                             StatusCode::Status200
                         }
                     } else {
+                        eprintln!("Error handling input: path {} does not exist", path);
                         StatusCode::Status404
                     }
                 }
-                Err(_) => StatusCode::Status500,
+                Err(_) => {
+                    eprintln!("Error handling input: {:?}", r);
+                    StatusCode::Status500
+                }
             };
             match code {
                 StatusCode::Status200 => Status {
@@ -65,7 +70,7 @@ pub mod input_handle {
             let first_line = Self::read_until_empty_line(stream)?;
             let path = Self::parse_first_line(first_line)?;
             if !Self::path_inside(&path) {
-                return Err("Path out of project directory".into());
+                return Err(format!("Path {} out of project directory", path).into());
             }
             Ok(path)
         }
@@ -78,7 +83,7 @@ pub mod input_handle {
                 .map(|line| line.unwrap())
                 .take_while(|line| !line.is_empty())
                 .collect();
-            println!("Got lines: {:?}", lines);
+            // println!("Got lines: {:?}", lines);
             if lines.len() == 0 {
                 return Err("Not enough non-empty lines".into());
             }
@@ -87,7 +92,7 @@ pub mod input_handle {
 
         fn parse_first_line(line: String) -> Result<String, Box<dyn Error>> {
             let words: Vec<_> = line.split(' ').filter(|&word| !word.is_empty()).collect();
-            println!("First line words: {:?}", words);
+            // println!("First line words: {:?}", words);
             if words.len() != 3 {
                 return Err("Wrong request format".into());
             }
@@ -98,7 +103,7 @@ pub mod input_handle {
                 return Err("HTTP version not supported".into());
             }
             let res = ".".to_string() + words[1];
-            println!("Parsed relative path: {}", res);
+            // println!("Parsed relative path: {}", res);
             Ok(res)
         }
 
@@ -150,4 +155,56 @@ pub mod input_handle {
     }
 }
 
-pub mod output_handle {}
+pub mod output_handle {
+    use std::{error::Error, fs::read, io::Write, net::TcpStream};
+
+    use crate::status::{Status, StatusCode};
+
+    pub struct OutputHandler;
+
+    fn write_line(stream: &mut TcpStream, s: &str) -> Result<(), Box<dyn Error>> {
+        write_all(stream, format!("{}\r\n", s))?;
+        Ok(())
+    }
+
+    fn write_all(stream: &mut TcpStream, s: String) -> Result<(), Box<dyn Error>> {
+        let mut written_count = 0;
+        let n = s.len();
+        let buf = s.as_bytes();
+        while written_count < n {
+            written_count += stream.write(&buf[written_count..n])?;
+        }
+        Ok(())
+    }
+
+    fn write_all_u8(stream: &mut TcpStream, buf: Vec<u8>) -> Result<(), Box<dyn Error>> {
+        let mut written_count = 0;
+        let n = buf.len();
+        while written_count < n {
+            written_count += stream.write(&buf[written_count..n])?;
+        }
+        Ok(())
+    }
+
+    impl OutputHandler {
+        pub fn output(stream: &mut TcpStream, status: Status) {
+            if let Err(e) = Self::handle(stream, status) {
+                eprintln!("Error while handling output: {}", e);
+            }
+        }
+
+        fn handle(stream: &mut TcpStream, status: Status) -> Result<(), Box<dyn Error>> {
+            let status_line = status.get_status_line();
+            write_line(stream, status_line)?;
+            let buf = match status.code {
+                StatusCode::Status200 => read(&status.path)?,
+                _ => Vec::new(),
+            };
+            // println!("Output buf content: {:?}", buf);
+            write_line(stream, &format!("Content-Length: {}", buf.len()))?;
+            write_line(stream, "")?;
+            write_all_u8(stream, buf)?;
+            Ok(())
+        }
+    }
+}
