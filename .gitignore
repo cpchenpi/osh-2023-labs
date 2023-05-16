@@ -2,3 +2,6 @@ lab2/.vscode/settings.json
 lab2/shell
 lab2/shell.o
 lab3/target
+lab3/*.jpg
+lab3/*.png
+lab3/*.html
