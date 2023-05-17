@@ -212,7 +212,7 @@ pub mod output_handle {
                 let file = File::open(&status.path)?;
                 let mut reader = BufReader::new(file);
                 let mut read_len = 0;
-                let mut buf = vec![0; 4096];
+                let mut buf = vec![0; 64 * 1024];
                 while read_len < len {
                     let single_len = reader.read(&mut buf[..])?;
                     read_len += single_len;
