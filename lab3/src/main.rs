@@ -1,15 +1,16 @@
-use lab3::{input_handle::InputHandler, output_handle::OutputHandler, status::Status};
-use std::{
-    net::{TcpListener, TcpStream},
-    thread,
-};
+use lab3::ThreadPool;
+use lab3::{InputHandler, OutputHandler, Status};
+use std::net::{TcpListener, TcpStream};
 
 fn main() {
     let listener = TcpListener::bind("0.0.0.0:8000").unwrap();
+
+    let pool = ThreadPool::new(256);
+
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                thread::spawn(|| handle_connection(stream));
+                pool.send(|| handle_connection(stream));
             }
             Err(e) => {
                 eprintln!("Error while establishing connection: {}", e);
