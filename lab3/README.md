@@ -2,7 +2,9 @@
 
 ## 编译和运行方法
 
-本次实验使用Cargo创建Rust语言项目，编译方式与一般Cargo项目相同，在lab3目录下运行`cargo run`即可。
+本次实验使用Cargo创建Rust语言项目，编译、运行方式与一般Cargo项目相同，在lab3目录下运行`cargo build`/`cargo run`即可。
+
+EDIT：线程池部分直接在一开始的简单多线程项目上做了修改；然而对于主程序`main.rs`，这一修改不大。倘若要改回原来的简单多线程，直接将其中进程池的创建`ThreadPool::new`删去，并将向线程池发送任务`pool.send`改回原来的直接创建线程`thread.spawn`即可。
 
 ## 整体设计
 
