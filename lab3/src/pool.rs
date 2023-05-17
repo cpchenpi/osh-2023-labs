@@ -3,7 +3,7 @@ use std::{
         mpsc::{self, Sender},
         Arc, Mutex,
     },
-    thread::{self},
+    thread,
 };
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
@@ -21,6 +21,8 @@ impl ThreadPool {
         for _ in 0..n {
             ThreadWrapper::new(Arc::clone(&receiver));
         }
+
+        println!("Thread pool create finished!");
 
         ThreadPool { sender }
     }
