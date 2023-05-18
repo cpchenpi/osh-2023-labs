@@ -4,6 +4,8 @@ lab2/shell.o
 lab3/target
 lab3/*.txt
 lab3/*.jpg
-lab3/*.png
 lab3/*.zip
-lab3/*.html
+lab3_async/*.txt
+lab3_async/*.jpg
+lab3_async/*.zip
+lab3_async/target
