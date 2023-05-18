@@ -10,26 +10,7 @@ use crate::status::{Status, StatusCode};
 pub struct OutputHandler;
 
 fn write_line(stream: &mut TcpStream, s: &str) -> Result<(), Box<dyn Error>> {
-    write_all(stream, format!("{}\r\n", s))?;
-    Ok(())
-}
-
-fn write_all(stream: &mut TcpStream, s: String) -> Result<(), Box<dyn Error>> {
-    let mut written_count = 0;
-    let n = s.len();
-    let buf = s.as_bytes();
-    while written_count < n {
-        written_count += stream.write(&buf[written_count..n])?;
-    }
-    Ok(())
-}
-
-fn write_all_u8(stream: &mut TcpStream, buf: &[u8]) -> Result<(), Box<dyn Error>> {
-    let mut written_count = 0;
-    let n = buf.len();
-    while written_count < n {
-        written_count += stream.write(&buf[written_count..n])?;
-    }
+    stream.write_all(&format!("{}\r\n", s).into_bytes())?;
     Ok(())
 }
 
@@ -58,7 +39,7 @@ impl OutputHandler {
             while read_len < len {
                 let single_len = reader.read(&mut buf[..])?;
                 read_len += single_len;
-                write_all_u8(stream, &buf[0..single_len])?;
+                stream.write_all(&buf[0..single_len])?;
             }
         }
         Ok(())
